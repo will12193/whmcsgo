@@ -7,3 +7,8 @@ package whmcsgo
 type ProductsService struct {
 	client *Client
 }
+type Product struct {
+	Name string `json:"name"`
+	Gid  int    `json:"gid"`
+	Pid  int    `json:"pid"`
+}

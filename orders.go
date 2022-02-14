@@ -10,6 +10,7 @@ type OrdersService struct {
 
 // Order represents a WHCMS Order for an account
 type Order struct {
+	OrderID       int     `json:"orderid"`
 	ClientID      *string `json:"clientid"`
 	PID           *string `json:"pid"`
 	Domain        *string `json:"domain"`
@@ -32,6 +33,18 @@ func (o Order) String() string {
 func (s *OrdersService) AddOrder(parms map[string]string) (*Order, *Response, error) {
 	order := new(Order)
 	resp, err := do(s.client, Params{parms: parms, u: "AddOrder"}, order)
+	if err != nil {
+		return nil, resp, err
+	}
+	return order, resp, err
+}
+
+// AcceptOrder accepts an existing order
+//
+// WHMCs API docs: https://developers.whmcs.com/api-reference/acceptorder/
+func (s *OrdersService) AcceptOrder(parms map[string]string) (*Order, *Response, error) {
+	order := new(Order)
+	resp, err := do(s.client, Params{parms: parms, u: "AcceptOrder"}, order)
 	if err != nil {
 		return nil, resp, err
 	}
