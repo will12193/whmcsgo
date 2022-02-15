@@ -26,7 +26,7 @@ Prerequisites to running the tests:
 - Settings -> Payment Gateways - Atleast one payment gateway must be selected
 - Setting -> Products/Services - Atleast one Product Group must be created
 
-Whats left after running the tests:
+Whats left (not cleaned up) after running the tests:
 - The test product
 */
 
@@ -112,11 +112,15 @@ func TestGetClients(t *testing.T) {
 	assert.True(t, clientExists)
 	assert.True(t, productExists)
 
+	err = deleteClient(client, tc.ID)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestClientContactList(t *testing.T) {
 	client, _ := loadWhmcs()
-	_, err := createTestClient(client)
+	tc, err := createTestClient(client)
 	if err != nil {
 		t.Error(err)
 	}
@@ -133,11 +137,16 @@ func TestClientContactList(t *testing.T) {
 
 	contacts := append(active, inactive...)
 	assert.Greater(t, len(contacts), 0)
+
+	err = deleteClient(client, tc.ID)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestCreateInvoice(t *testing.T) {
-	whmcs, _ := loadWhmcs()
-	client, err := createTestClient(whmcs)
+	client, _ := loadWhmcs()
+	tc, err := createTestClient(client)
 	if err != nil {
 		panic(err)
 	}
@@ -164,9 +173,14 @@ func TestCreateInvoice(t *testing.T) {
 	lineitems = append(lineitems, lineItem)
 
 	invoice.LineItems = lineitems
-	supportInvoice, _, err := whmcs.Billing.CreateInvoice(client.ID, invoice)
+	supportInvoice, _, err := client.Billing.CreateInvoice(tc.ID, invoice)
 	if err != nil {
 		t.Errorf("ERROR %s", err)
 	}
 	t.Logf("\ninvoice ID: %d\n", supportInvoice)
+
+	err = deleteClient(client, tc.ID)
+	if err != nil {
+		t.Error(err)
+	}
 }

@@ -87,7 +87,7 @@ func createTestOrder(whmcs *whmcsgo.Client, clientID int, productID int, payment
 }
 
 func deleteClient(whmcs *whmcsgo.Client, clientID int) error {
-	resp, err := whmcsgo.DeleteClient(map[string]string{
+	resp, err := whmcs.Accounts.DeleteClient(map[string]string{
 		"clientid": fmt.Sprintf("%d", clientID), "deleteusers": "true",
 		"deletetransactions": "true",
 	})
