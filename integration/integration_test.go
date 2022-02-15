@@ -96,7 +96,7 @@ func TestGetClients(t *testing.T) {
 			},
 		)
 		t.Log(wd)
-		if wd.Email == "testdudes@divisia.io" {
+		if wd.Email == testUser {
 			clientExists = true
 		}
 
