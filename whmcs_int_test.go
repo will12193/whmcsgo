@@ -7,7 +7,12 @@ import (
 
 	"github.com/jinzhu/now"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/stretchr/testify/assert"
 )
+
+type tHelper interface {
+	Helper()
+}
 
 /*
 Integration tests to be run with an active development instance of WHMCS.
@@ -34,6 +39,7 @@ type Config struct {
 }
 
 var whmcsConfig *Config
+var testUser = "testdude@divisia.io"
 
 // Import environment variables
 func init() {
@@ -68,9 +74,11 @@ func createTestProduct(whmcs *Client) (*int, error) {
 
 // Creates a test client
 func createTestClient(whmcs *Client) (*Account, error) {
+	email := testUser
+
 	_, response, err := whmcs.Accounts.AddClient(
 		map[string]string{
-			"firstname": "Test", "lastname": "Dude", "companyname": "test corp", "email": "testdudes@divisia.io",
+			"firstname": "Test", "lastname": "Dude", "companyname": "test corp", "email": email,
 			"address1": "123 Fake Street", "city": "Brisbane", "state": "Queensland", "postcode": "4000",
 			"country": "AU", "phonenumber": "1234123123", "password2": "4me2test",
 		},
@@ -79,15 +87,29 @@ func createTestClient(whmcs *Client) (*Account, error) {
 		return nil, fmt.Errorf("AddClient failed: %w", err)
 	}
 
-	if response.StatusCode == 201 || response.StatusCode == 200 {
-		client, _, err := whmcs.Accounts.GetClientsDetails(map[string]string{"email": "testdudes@divisia.io"})
+	apiResp := struct {
+		Result   string
+		Message  string
+		ClientID int `json:"client_id"`
+		OwnerID  int `json:"owner_id"`
+	}{}
+
+	err = json.Unmarshal([]byte(response.Body), &apiResp)
+
+	if err != nil {
+		return nil, fmt.Errorf("Body Unmarshal failed: %w", err)
+	}
+
+	if response.StatusCode == 200 ||
+		(apiResp.Result == "error" && apiResp.Message == "A user already exists with that email address") {
+		client, _, err := whmcs.Accounts.GetClientsDetails(map[string]string{"email": email})
 		if err != nil {
 			return nil, fmt.Errorf("GetClientDetails failed: %w", err)
 		}
 		fmt.Printf("Created test client with email: %s\n", client.Email)
 		return client, err
 	} else {
-		return nil, fmt.Errorf("error, AddClient returned status of: %s\n", response.Status)
+		return nil, fmt.Errorf("error, AddClient returned status of: %+v\n", response)
 	}
 }
 
@@ -143,7 +165,9 @@ func TestGetClients(t *testing.T) {
 
 	// Test GetClients
 	t.Log("Load Private Clients")
-	wc, _, err := client.Accounts.GetClients(map[string]string{"sorting": "ASC", "limitstart": "0", "limitnum": "2500"})
+	wc, _, err := client.Accounts.GetClients(
+		map[string]string{"sorting": "ASC", "limitstart": "0", "limitnum": "2500"},
+	)
 	if err != nil {
 		t.Error(err)
 	}
@@ -179,11 +203,48 @@ func TestClientContactList(t *testing.T) {
 		t.Error(err)
 	}
 
+	var ContactContains assert.ComparisonAssertionFunc = func(
+		t assert.TestingT, a interface{}, b interface{}, msgAndArgs ...interface{},
+	) bool {
+		if h, ok := t.(tHelper); ok {
+			h.Helper()
+		}
+		contact := a.([]ContactList)
+		expected := b.(ContactList)
+
+		for _, c := range contact {
+			if c.CompanyName == expected.CompanyName &&
+				c.FullName == expected.FullName &&
+				c.Phone == expected.Phone &&
+				c.Status == expected.Status &&
+				c.Email == expected.Email &&
+				c.State == expected.State {
+				return true
+			}
+		}
+
+		assert.Fail(t, "Doesn't contain matching company", msgAndArgs)
+		return false
+	}
+
 	active, err := client.Accounts.ClientContactList("Active")
 	if err != nil {
 		t.Error(err)
 	}
+
+	assert.True(t, len(active) > 0, active)
+
+	ContactContains(t, active, ContactList{
+		CompanyName: "test corp",
+		FullName:    "Test Dude",
+		Phone:       "01234123123",
+		Status:      "Active",
+		State:       "Queensland",
+		Email:       testUser,
+	}, active)
+
 	inactive, err := client.Accounts.ClientContactList("Inactive")
+
 	if err != nil {
 		t.Error(err)
 	}
@@ -219,9 +280,35 @@ func TestCreateInvoice(t *testing.T) {
 	lineitems = append(lineitems, lineItem)
 
 	invoice.LineItems = lineitems
-	supportInvoice, _, err := whmcs.Billing.CreateInvoice(client.ID, invoice)
-	if err != nil {
-		t.Errorf("ERROR %s", err)
+
+	var AssertInvoice assert.ComparisonAssertionFunc = func(
+		t assert.TestingT, expected interface{}, b interface{}, msgAndArgs ...interface{},
+	) bool {
+		if h, ok := t.(tHelper); ok {
+			h.Helper()
+		}
+		expectedObj := expected.(*InvoiceResponse)
+		actual := b.(*InvoiceResponse)
+		assert.Equal(t, expectedObj.Status, actual.Status)
+		assert.Equal(t, expectedObj.Result, actual.Result)
+		assert.Greater(t, expectedObj.InvoiceID, 0)
+		return true
 	}
-	t.Logf("invoice ID: %d\n", supportInvoice)
+
+	invoiceid, supportInvoice, err := whmcs.Billing.CreateInvoice(client.ID, invoice)
+
+	assert.NoError(t, err)
+
+	var apiResp InvoiceResponse
+	err = json.Unmarshal([]byte(supportInvoice.Body), &apiResp)
+	assert.NoError(t, err)
+
+	AssertInvoice(t, &apiResp, &InvoiceResponse{
+		Status: "Draft",
+		Result: "success",
+	})
+
+	// TODO: Get line items and assert correct
+
+	t.Logf("invoice ID: %d\n", invoiceid)
 }
