@@ -1,11 +1,11 @@
-package whmcsgo
+package integration
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"testing"
 
+	"github.com/chrisjoyce911/whmcsgo"
 	"github.com/jinzhu/now"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -24,6 +24,7 @@ Prerequisites to running the tests:
 - Working instance of WHMCS
 - Settings -> API Credentials - Created API Role with appropriate access and create credentials
 - Settings -> Payment Gateways - Atleast one payment gateway must be selected
+- Setting -> Products/Services - Atleast one Product Group must be created
 */
 
 type Config struct {
@@ -43,90 +44,15 @@ func whmcs() (whmcsConfig *Config, err error) {
 	return whmcsConfig, err
 }
 
-// Creates a test product
-func createTestProduct(whmcs *Client) (*int, error) {
-	var (
-		prod Product
-	)
-	_, response, err := whmcs.Products.AddProduct(
-		map[string]string{
-			"name": "TestProduct", "gid": "1",
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	json.Unmarshal([]byte(response.Body), &prod)
-
-	if response.StatusCode == 201 || response.StatusCode == 200 {
-		fmt.Printf("Created test product. ProductID: %d\n", prod.Pid)
-		return &prod.Pid, err
-	} else {
-		return nil, fmt.Errorf("error, AddProduct returned status of: %d\n", response.StatusCode)
-	}
-}
-
-// Creates a test client
-func createTestClient(whmcs *Client) (*Account, error) {
-	_, response, err := whmcs.Accounts.AddClient(
-		map[string]string{
-			"firstname": "Test", "lastname": "Dude", "companyname": "test corp", "email": "testdudes@divisia.io",
-			"address1": "123 Fake Street", "city": "Brisbane", "state": "Queensland", "postcode": "4000",
-			"country": "AU", "phonenumber": "1234123123", "password2": "4me2test",
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if response.StatusCode == 201 || response.StatusCode == 200 {
-		client, _, err := whmcs.Accounts.GetClientsDetails(map[string]string{"email": "testdudes@divisia.io"})
-		if err != nil {
-			return nil, err
-		}
-		fmt.Printf("Created test client with email: %s\n", client.Email)
-		return client, err
-	} else {
-		return nil, fmt.Errorf("error, AddClient returned status of: %s\n", response.Status)
-	}
-}
-
-// Adds and accepts an order
-func createTestOrder(whmcs *Client, clientID int, productID int, paymentMethod string) (*Order, error) {
-	// Add the order
-	order, resp, err := whmcs.Orders.AddOrder(map[string]string{
-		"clientid": fmt.Sprintf("%d", clientID), "paymentmethod": paymentMethod,
-		"pid": fmt.Sprintf("1, %d", productID),
-	})
-	if err != nil {
-		return nil, err
-	} else if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return nil, fmt.Errorf("error, AddOrder returned status of: %s\n", resp.Status)
-	}
-	json.Unmarshal([]byte(resp.Body), order)
-
-	// Accept the order
-	_, resp, err = whmcs.Orders.AcceptOrder(map[string]string{
-		"orderid": fmt.Sprintf("%d", order.OrderID),
-	})
-	if err != nil {
-		return nil, err
-	} else if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return nil, fmt.Errorf("error, AcceptOrder returned status of: %s\n", resp.Status)
-	}
-	fmt.Printf("Created test order with ID: %d\n", order.OrderID)
-
-	return order, err
-}
-
-func loadWhmcs() (*Client, *Config) {
+// Get Authenticated and connected to WHMCS API
+func loadWhmcs() (*whmcsgo.Client, *Config) {
 	whmcsConfig, err := whmcs()
 	if err != nil {
 		panic(err)
 	}
 
-	auth := NewAuth(map[string]string{"identifier": whmcsConfig.Ident, "secret": whmcsConfig.Secret, "accesskey": whmcsConfig.Access})
-	whmcs := NewClient(nil, auth, whmcsConfig.URL)
+	auth := whmcsgo.NewAuth(map[string]string{"identifier": whmcsConfig.Ident, "secret": whmcsConfig.Secret, "accesskey": whmcsConfig.Access})
+	whmcs := whmcsgo.NewClient(nil, auth, whmcsConfig.URL)
 	return whmcs, whmcsConfig
 }
 
@@ -202,13 +128,13 @@ func TestCreateInvoice(t *testing.T) {
 	}
 
 	// Create a new Invoice
-	invoice := CreateInvoiceRequest{}
+	invoice := whmcsgo.CreateInvoiceRequest{}
 	invoice.SendInvoice = false
 	invoice.Status = "Draft"
 	invoice.DueDate = now.EndOfMonth()
 
-	lineitems := []InvoiceLineItems{}
-	lineItem := InvoiceLineItems{}
+	lineitems := []whmcsgo.InvoiceLineItems{}
+	lineItem := whmcsgo.InvoiceLineItems{}
 
 	lineItem.ItemOrder = 1
 	lineItem.ItemDescription = "This is a really cool test invoice!"
