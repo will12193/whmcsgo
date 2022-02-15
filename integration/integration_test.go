@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 type tHelper interface {
 	Helper()
 }
+
 /*
 Integration tests to be run with an active development instance of WHMCS.
 
@@ -26,8 +28,8 @@ export WHM_PAYMENTMETHOD="payment method setup in dev env"
 Prerequisites to running the tests:
 - Working instance of WHMCS
 - Settings -> API Credentials - Created API Role with appropriate access and create credentials
-- Settings -> Payment Gateways - Atleast one payment gateway must be selected
-- Setting -> Products/Services - Atleast one Product Group must be created
+- Settings -> Payment Gateways - At least one payment gateway must be selected
+- Setting -> Products/Services - At least one Product Group must be created
 
 Whats left after running the tests:
 - The test product
@@ -131,8 +133,8 @@ func TestClientContactList(t *testing.T) {
 		if h, ok := t.(tHelper); ok {
 			h.Helper()
 		}
-		contact := a.([]ContactList)
-		expected := b.(ContactList)
+		contact := a.([]whmcsgo.ContactList)
+		expected := b.(whmcsgo.ContactList)
 
 		for _, c := range contact {
 			if c.CompanyName == expected.CompanyName &&
@@ -154,9 +156,9 @@ func TestClientContactList(t *testing.T) {
 		t.Error(err)
 	}
 
-	assert.True(t, len(active) > 0, active)
+	assert.Greater(t, len(active), 0, active)
 
-	ContactContains(t, active, ContactList{
+	ContactContains(t, active, whmcsgo.ContactList{
 		CompanyName: "test corp",
 		FullName:    "Test Dude",
 		Phone:       "01234123123",
@@ -210,7 +212,7 @@ func TestCreateInvoice(t *testing.T) {
 			h.Helper()
 		}
 		expectedObj := expected.(*whmcsgo.InvoiceResponse)
-		actual := b.(*InvoiceResponse)
+		actual := b.(*whmcsgo.InvoiceResponse)
 		assert.Equal(t, expectedObj.Status, actual.Status)
 		assert.Equal(t, expectedObj.Result, actual.Result)
 		assert.Greater(t, expectedObj.InvoiceID, 0)
@@ -233,5 +235,4 @@ func TestCreateInvoice(t *testing.T) {
 	// TODO: Get line items and assert correct
 
 	t.Logf("invoice ID: %d\n", invoiceid)
-}
 }

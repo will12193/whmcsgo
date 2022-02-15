@@ -34,7 +34,7 @@ func createTestProduct(whmcs *whmcsgo.Client) (*int, error) {
 
 // Creates a test client (if client with same email already exists, no new client will be made)
 func createTestClient(whmcs *whmcsgo.Client) (*whmcsgo.Account, error) {
-	email := testUser
+	email := "testdude@divisia.io"
 
 	_, response, err := whmcs.Accounts.AddClient(
 		map[string]string{
