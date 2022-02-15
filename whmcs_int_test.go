@@ -1,11 +1,10 @@
-package integration
+package whmcsgo
 
 import (
 	"encoding/json"
 	"fmt"
 	"testing"
 
-	"github.com/chrisjoyce911/whmcsgo"
 	"github.com/jinzhu/now"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/stretchr/testify/assert"
@@ -28,11 +27,7 @@ export WHM_PAYMENTMETHOD="payment method setup in dev env"
 Prerequisites to running the tests:
 - Working instance of WHMCS
 - Settings -> API Credentials - Created API Role with appropriate access and create credentials
-- Settings -> Payment Gateways - At least one payment gateway must be selected
-- Setting -> Products/Services - At least one Product Group must be created
-
-Whats left (not cleaned up) after running the tests:
-- The test product
+- Settings -> Payment Gateways - Atleast one payment gateway must be selected
 */
 
 type Config struct {
@@ -54,10 +49,102 @@ func init() {
 	}
 }
 
-// Get Authenticated and connected to WHMCS API
-func loadWhmcs() (*whmcsgo.Client, *Config) {
-	auth := whmcsgo.NewAuth(map[string]string{"identifier": whmcsConfig.Ident, "secret": whmcsConfig.Secret, "accesskey": whmcsConfig.Access})
-	whmcs := whmcsgo.NewClient(nil, auth, whmcsConfig.URL)
+// Creates a test product
+func createTestProduct(whmcs *Client) (*int, error) {
+	var (
+		prod Product
+	)
+	_, response, err := whmcs.Products.AddProduct(
+		map[string]string{
+			"name": "TestProduct", "gid": "1",
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("AddProduct Failed: %w", err)
+	}
+	json.Unmarshal([]byte(response.Body), &prod)
+
+	if response.StatusCode == 201 || response.StatusCode == 200 {
+		fmt.Printf("Created test product. ProductID: %d\n", prod.Pid)
+		return &prod.Pid, err
+	} else {
+		return nil, fmt.Errorf("error, AddProduct returned status of: %d\n", response.StatusCode)
+	}
+}
+
+// Creates a test client
+func createTestClient(whmcs *Client) (*Account, error) {
+	email := testUser
+
+	_, response, err := whmcs.Accounts.AddClient(
+		map[string]string{
+			"firstname": "Test", "lastname": "Dude", "companyname": "test corp", "email": email,
+			"address1": "123 Fake Street", "city": "Brisbane", "state": "Queensland", "postcode": "4000",
+			"country": "AU", "phonenumber": "1234123123", "password2": "4me2test",
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("AddClient failed: %w", err)
+	}
+
+	apiResp := struct {
+		Result   string
+		Message  string
+		ClientID int `json:"client_id"`
+		OwnerID  int `json:"owner_id"`
+	}{}
+
+	err = json.Unmarshal([]byte(response.Body), &apiResp)
+
+	if err != nil {
+		return nil, fmt.Errorf("Body Unmarshal failed: %w", err)
+	}
+
+	if response.StatusCode == 200 ||
+		(apiResp.Result == "error" && apiResp.Message == "A user already exists with that email address") {
+		client, _, err := whmcs.Accounts.GetClientsDetails(map[string]string{"email": email})
+		if err != nil {
+			return nil, fmt.Errorf("GetClientDetails failed: %w", err)
+		}
+		fmt.Printf("Created test client with email: %s\n", client.Email)
+		return client, err
+	} else {
+		return nil, fmt.Errorf("error, AddClient returned status of: %+v\n", response)
+	}
+}
+
+// Adds and accepts an order
+func createTestOrder(whmcs *Client, clientID int, productID int, paymentMethod string) (*Order, error) {
+	// Add the order
+	order, resp, err := whmcs.Orders.AddOrder(map[string]string{
+		"clientid": fmt.Sprintf("%d", clientID), "paymentmethod": paymentMethod,
+		"pid": fmt.Sprintf("1, %d", productID),
+	})
+	if err != nil {
+		return nil, err
+	} else if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return nil, fmt.Errorf("error, AddOrder returned status of: %s\n", resp.Status)
+	}
+	json.Unmarshal([]byte(resp.Body), order)
+
+	// Accept the order
+	_, resp, err = whmcs.Orders.AcceptOrder(map[string]string{
+		"orderid": fmt.Sprintf("%d", order.OrderID),
+	})
+	if err != nil {
+		return nil, err
+	} else if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return nil, fmt.Errorf("error, AcceptOrder returned status of: %s\n", resp.Status)
+	}
+	// t.Logf or pass in logger ?!?
+	fmt.Printf("Created test order with ID: %d\n", order.OrderID)
+
+	return order, err
+}
+
+func loadWhmcs() (*Client, *Config) {
+	auth := NewAuth(map[string]string{"identifier": whmcsConfig.Ident, "secret": whmcsConfig.Secret, "accesskey": whmcsConfig.Access})
+	whmcs := NewClient(nil, auth, whmcsConfig.URL)
 	return whmcs, whmcsConfig
 }
 
@@ -78,14 +165,13 @@ func TestGetClients(t *testing.T) {
 
 	// Test GetClients
 	t.Log("Load Private Clients")
-	wc, _, err := client.Accounts.GetClients(map[string]string{"sorting": "ASC", "limitstart": "0", "limitnum": "2500"})
+	wc, _, err := client.Accounts.GetClients(
+		map[string]string{"sorting": "ASC", "limitstart": "0", "limitnum": "2500"},
+	)
 	if err != nil {
 		t.Error(err)
 	}
-	assert.Greater(t, wc.Numreturned, 0)
 
-	clientExists := false
-	productExists := false
 	for _, thisCustomer := range wc.Clients.Client {
 		t.Logf("\n\n%v\n", thisCustomer)
 
@@ -96,9 +182,6 @@ func TestGetClients(t *testing.T) {
 			},
 		)
 		t.Log(wd)
-		if wd.Email == "testdudes@divisia.io" {
-			clientExists = true
-		}
 
 		// Test GetClientProducts
 		wp, _, _ := client.Accounts.GetClientsProducts(
@@ -106,27 +189,16 @@ func TestGetClients(t *testing.T) {
 				"clientid": fmt.Sprintf("%d", thisCustomer.ID), "limitstart": "0", "limitnum": "500",
 			},
 		)
-
 		t.Logf("\nProducts for %s\n", thisCustomer.Email)
 		for _, thisProduct := range wp.Products.Product {
 			t.Log(thisProduct)
 		}
-		if len(wp.Products.Product) > 0 {
-			productExists = true
-		}
-	}
-	assert.True(t, clientExists)
-	assert.True(t, productExists)
-
-	err = deleteClient(client, tc.ID)
-	if err != nil {
-		t.Error(err)
 	}
 }
 
 func TestClientContactList(t *testing.T) {
 	client, _ := loadWhmcs()
-	tc, err := createTestClient(client)
+	_, err := createTestClient(client)
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,8 +209,8 @@ func TestClientContactList(t *testing.T) {
 		if h, ok := t.(tHelper); ok {
 			h.Helper()
 		}
-		contact := a.([]whmcsgo.ContactList)
-		expected := b.(whmcsgo.ContactList)
+		contact := a.([]ContactList)
+		expected := b.(ContactList)
 
 		for _, c := range contact {
 			if c.CompanyName == expected.CompanyName &&
@@ -160,9 +232,9 @@ func TestClientContactList(t *testing.T) {
 		t.Error(err)
 	}
 
-	assert.Greater(t, len(active), 0, active)
+	assert.True(t, len(active) > 0, active)
 
-	ContactContains(t, active, whmcsgo.ContactList{
+	ContactContains(t, active, ContactList{
 		CompanyName: "test corp",
 		FullName:    "Test Dude",
 		Phone:       "01234123123",
@@ -176,33 +248,24 @@ func TestClientContactList(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("\nActive Contacts:\n%v\nInactive Contacts:\n%v", active, inactive)
-
-	contacts := append(active, inactive...)
-	assert.Greater(t, len(contacts), 0)
-
-	err = deleteClient(client, tc.ID)
-	if err != nil {
-		t.Error(err)
-	}
-
+	t.Logf("Active Contacts:\n%v\nInactive Contacts:\n%v", active, inactive)
 }
 
 func TestCreateInvoice(t *testing.T) {
-	client, _ := loadWhmcs()
-	tc, err := createTestClient(client)
+	whmcs, _ := loadWhmcs()
+	client, err := createTestClient(whmcs)
 	if err != nil {
 		panic(err)
 	}
 
 	// Create a new Invoice
-	invoice := whmcsgo.CreateInvoiceRequest{}
+	invoice := CreateInvoiceRequest{}
 	invoice.SendInvoice = false
 	invoice.Status = "Draft"
 	invoice.DueDate = now.EndOfMonth()
 
-	lineitems := []whmcsgo.InvoiceLineItems{}
-	lineItem := whmcsgo.InvoiceLineItems{}
+	lineitems := []InvoiceLineItems{}
+	lineItem := InvoiceLineItems{}
 
 	lineItem.ItemOrder = 1
 	lineItem.ItemDescription = "This is a really cool test invoice!"
@@ -224,23 +287,23 @@ func TestCreateInvoice(t *testing.T) {
 		if h, ok := t.(tHelper); ok {
 			h.Helper()
 		}
-		expectedObj := expected.(*whmcsgo.InvoiceResponse)
-		actual := b.(*whmcsgo.InvoiceResponse)
+		expectedObj := expected.(*InvoiceResponse)
+		actual := b.(*InvoiceResponse)
 		assert.Equal(t, expectedObj.Status, actual.Status)
 		assert.Equal(t, expectedObj.Result, actual.Result)
 		assert.Greater(t, expectedObj.InvoiceID, 0)
 		return true
 	}
 
-	invoiceid, supportInvoice, err := client.Billing.CreateInvoice(tc.ID, invoice)
+	invoiceid, supportInvoice, err := whmcs.Billing.CreateInvoice(client.ID, invoice)
 
 	assert.NoError(t, err)
 
-	var apiResp whmcsgo.InvoiceResponse
+	var apiResp InvoiceResponse
 	err = json.Unmarshal([]byte(supportInvoice.Body), &apiResp)
 	assert.NoError(t, err)
 
-	AssertInvoice(t, &apiResp, &whmcsgo.InvoiceResponse{
+	AssertInvoice(t, &apiResp, &InvoiceResponse{
 		Status: "Draft",
 		Result: "success",
 	})
@@ -248,9 +311,4 @@ func TestCreateInvoice(t *testing.T) {
 	// TODO: Get line items and assert correct
 
 	t.Logf("invoice ID: %d\n", invoiceid)
-
-	err = deleteClient(client, tc.ID)
-	if err != nil {
-		t.Error(err)
-	}
 }

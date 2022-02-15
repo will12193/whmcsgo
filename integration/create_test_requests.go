@@ -34,25 +34,42 @@ func createTestProduct(whmcs *whmcsgo.Client) (*int, error) {
 
 // Creates a test client (if client with same email already exists, no new client will be made)
 func createTestClient(whmcs *whmcsgo.Client) (*whmcsgo.Account, error) {
+	email := "testdude@divisia.io"
+
 	_, response, err := whmcs.Accounts.AddClient(
 		map[string]string{
-			"firstname": "Test", "lastname": "Dude", "companyname": "test corp", "email": "testdudes@divisia.io",
+			"firstname": "Test", "lastname": "Dude", "companyname": "test corp", "email": email,
 			"address1": "123 Fake Street", "city": "Brisbane", "state": "Queensland", "postcode": "4000",
 			"country": "AU", "phonenumber": "1234123123", "password2": "4me2test",
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("whmcs.Accounts.AddClient failed: %w", err)
+		return nil, fmt.Errorf("AddClient failed: %w", err)
 	}
 
-	if response.StatusCode == 201 || response.StatusCode == 200 {
-		client, _, err := whmcs.Accounts.GetClientsDetails(map[string]string{"email": "testdudes@divisia.io"})
+	apiResp := struct {
+		Result   string
+		Message  string
+		ClientID int `json:"client_id"`
+		OwnerID  int `json:"owner_id"`
+	}{}
+
+	err = json.Unmarshal([]byte(response.Body), &apiResp)
+
+	if err != nil {
+		return nil, fmt.Errorf("Body Unmarshal failed: %w", err)
+	}
+
+	if response.StatusCode == 200 ||
+		(apiResp.Result == "error" && apiResp.Message == "A user already exists with that email address") {
+		client, _, err := whmcs.Accounts.GetClientsDetails(map[string]string{"email": email})
 		if err != nil {
-			return nil, fmt.Errorf("whmcs.Accounts.GetClientsDetails failed: %w", err)
+			return nil, fmt.Errorf("GetClientDetails failed: %w", err)
 		}
+		fmt.Printf("Created test client with email: %s\n", client.Email)
 		return client, err
 	} else {
-		return nil, fmt.Errorf("error, AddClient returned status of: %s\n", response.Status)
+		return nil, fmt.Errorf("error, AddClient returned status of: %+v\n", response)
 	}
 }
 
