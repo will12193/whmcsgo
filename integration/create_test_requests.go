@@ -26,14 +26,13 @@ func createTestProduct(whmcs *whmcsgo.Client) (*int, error) {
 	}
 
 	if response.StatusCode == 201 || response.StatusCode == 200 {
-		fmt.Printf("Created test product. ProductID: %d\n", prod.Pid)
 		return &prod.Pid, err
 	} else {
 		return nil, fmt.Errorf("error, AddProduct returned status of: %d\n", response.StatusCode)
 	}
 }
 
-// Creates a test client
+// Creates a test client (if client with same email already exists, no new client will be made)
 func createTestClient(whmcs *whmcsgo.Client) (*whmcsgo.Account, error) {
 	_, response, err := whmcs.Accounts.AddClient(
 		map[string]string{
@@ -51,7 +50,6 @@ func createTestClient(whmcs *whmcsgo.Client) (*whmcsgo.Account, error) {
 		if err != nil {
 			return nil, fmt.Errorf("whmcs.Accounts.GetClientsDetails failed: %w", err)
 		}
-		fmt.Printf("Created test client with email: %s\n", client.Email)
 		return client, err
 	} else {
 		return nil, fmt.Errorf("error, AddClient returned status of: %s\n", response.Status)
@@ -84,7 +82,20 @@ func createTestOrder(whmcs *whmcsgo.Client, clientID int, productID int, payment
 	} else if resp.StatusCode != 200 && resp.StatusCode != 201 {
 		return nil, fmt.Errorf("error, AcceptOrder returned status of: %s\n", resp.Status)
 	}
-	fmt.Printf("Created test order with ID: %d\n", order.OrderID)
 
 	return order, err
+}
+
+func deleteClient(whmcs *whmcsgo.Client, clientID int) error {
+	resp, err := whmcsgo.DeleteClient(map[string]string{
+		"clientid": fmt.Sprintf("%d", clientID), "deleteusers": "true",
+		"deletetransactions": "true",
+	})
+	if err != nil {
+		return fmt.Errorf("whmcs.DeleteClient failed: %w", err)
+	} else if resp.StatusCode != 200 {
+		return fmt.Errorf("error, DeleteClient returned status of: %s\n", resp.Status)
+	}
+
+	return nil
 }
