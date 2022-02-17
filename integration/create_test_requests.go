@@ -8,13 +8,13 @@ import (
 )
 
 // Creates a test product
-func createTestProduct(whmcs *whmcsgo.Client) (*int, error) {
+func createTestProduct(whmcs *whmcsgo.Client, name string, gid int) (*int, error) {
 	var (
 		prod whmcsgo.Product
 	)
 	_, response, err := whmcs.Products.AddProduct(
 		map[string]string{
-			"name": "TestProduct", "gid": "1",
+			"name": name, "gid": fmt.Sprintf("%d", gid),
 		},
 	)
 	if err != nil {
@@ -25,7 +25,7 @@ func createTestProduct(whmcs *whmcsgo.Client) (*int, error) {
 		return nil, fmt.Errorf("json.Unmarshal failed: %w", err)
 	}
 
-	if response.StatusCode == 201 || response.StatusCode == 200 {
+	if response.StatusCode == 200 {
 		return &prod.Pid, err
 	} else {
 		return nil, fmt.Errorf("error, AddProduct returned status of: %d\n", response.StatusCode)
@@ -66,7 +66,6 @@ func createTestClient(whmcs *whmcsgo.Client) (*whmcsgo.Account, error) {
 		if err != nil {
 			return nil, fmt.Errorf("GetClientDetails failed: %w", err)
 		}
-		fmt.Printf("Created test client with email: %s\n", client.Email)
 		return client, err
 	} else {
 		return nil, fmt.Errorf("error, AddClient returned status of: %+v\n", response)
@@ -78,7 +77,7 @@ func createTestOrder(whmcs *whmcsgo.Client, clientID int, productID int, payment
 	// Add the order
 	order, resp, err := whmcs.Orders.AddOrder(map[string]string{
 		"clientid": fmt.Sprintf("%d", clientID), "paymentmethod": paymentMethod,
-		"pid": fmt.Sprintf("1, %d", productID),
+		"pid": fmt.Sprintf("%d, 1", productID),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("whmcs.Orders.AddOrder failed: %w", err)

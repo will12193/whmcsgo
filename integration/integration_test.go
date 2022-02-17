@@ -28,11 +28,9 @@ export WHM_PAYMENTMETHOD="payment method setup in dev env"
 Prerequisites to running the tests:
 - Working instance of WHMCS
 - Settings -> API Credentials - Created API Role with appropriate access and create credentials
-- Settings -> Payment Gateways - At least one payment gateway must be selected
-- Setting -> Products/Services - At least one Product Group must be created
 
 Whats left (not cleaned up) after running the tests:
-- The test product
+- A Payment Gateway
 */
 
 type Config struct {
@@ -45,6 +43,8 @@ type Config struct {
 
 var whmcsConfig *Config
 var testUser = "testdude@divisia.io"
+var testProductGroup = "Test Product Group"
+var testProduct = "Test Product"
 
 // Import environment variables
 func init() {
@@ -67,7 +67,15 @@ func TestGetClients(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	productID, err := createTestProduct(client)
+	gid, err := createProductGroup(testProductGroup)
+	if err != nil {
+		t.Error(err)
+	}
+	productID, err := createTestProduct(client, testProduct, *gid)
+	if err != nil {
+		t.Error(err)
+	}
+	err = createPaymentGW(whmcsConfig.PaymentMethod)
 	if err != nil {
 		t.Error(err)
 	}
@@ -87,7 +95,7 @@ func TestGetClients(t *testing.T) {
 	clientExists := false
 	productExists := false
 	for _, thisCustomer := range wc.Clients.Client {
-		t.Logf("\n\n%v\n", thisCustomer)
+		t.Logf("\n\n%v\n\n", thisCustomer)
 
 		// Test GetClientDetails
 		wd, _, _ := client.Accounts.GetClientsDetails(
@@ -119,6 +127,14 @@ func TestGetClients(t *testing.T) {
 	assert.True(t, productExists)
 
 	err = deleteClient(client, tc.ID)
+	if err != nil {
+		t.Error(err)
+	}
+	err = deleteProduct(testProduct)
+	if err != nil {
+		t.Error(err)
+	}
+	err = deleteProductGroup(testProductGroup)
 	if err != nil {
 		t.Error(err)
 	}
