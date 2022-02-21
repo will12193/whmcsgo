@@ -66,32 +66,24 @@ func loadWhmcs() (*whmcsgo.Client, *Config) {
 func TestGetClients(t *testing.T) {
 	client, whmcsConfig := loadWhmcs()
 	tc, err := createTestClient(client)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, tc)
 	gid, err := createProductGroup(whmcsConfig.DBPassword, testProductGroup)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, *gid, 0)
 	productID, err := createTestProduct(client, testProduct, *gid)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, *productID, 0)
 	err = createPaymentGW(whmcsConfig.DBPassword, whmcsConfig.PaymentMethod)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 	_, err = createTestOrder(client, tc.ID, *productID, whmcsConfig.PaymentMethod)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	// Test GetClients
 	t.Log("Load Private Clients")
 	wc, _, err := client.Accounts.GetClients(map[string]string{"sorting": "ASC", "limitstart": "0", "limitnum": "2500"})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, wc)
 	assert.Greater(t, wc.Numreturned, 0)
 
 	clientExists := false

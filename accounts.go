@@ -206,7 +206,7 @@ subaccount
 */
 func (s *AccountsService) GetContacts(parms map[string]string) (*Account, *Response, error) {
 	a := new(Account)
-	resp, err := do(s.client, Params{parms: parms, u: "GetContacts"}, a)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "GetContacts"}, a)
 	if err != nil {
 		return nil, resp, err
 	}
@@ -276,7 +276,7 @@ func (s *AccountsService) ClientContactList(status string) ([]ContactList, error
 			clientid := fmt.Sprintf("%d", c.ID)
 			clParams := map[string]string{"clientid": clientid}
 
-			resp, err := do(s.client, Params{parms: clParams, u: "GetClientsDetails"}, cl)
+			resp, err := apiRequest(s.client, Params{parms: clParams, u: "GetClientsDetails"}, cl)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -331,7 +331,7 @@ func (s *AccountsService) ClientLastBilled(status string) ([]ClientLastBilledLis
 			clientid := fmt.Sprintf("%d", c.ID)
 			clParams := map[string]string{"clientid": clientid}
 
-			resp, err := do(s.client, Params{parms: clParams, u: "GetClientsDetails"}, cl)
+			resp, err := apiRequest(s.client, Params{parms: clParams, u: "GetClientsDetails"}, cl)
 			if err != nil {
 				fmt.Println(err)
 			}

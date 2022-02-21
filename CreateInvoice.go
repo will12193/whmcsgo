@@ -81,7 +81,7 @@ func (s *BillingService) CreateInvoice(userID int, invoice CreateInvoiceRequest)
 		invoiceParams[k] = v
 	}
 
-	resp, err := do(s.client, Params{parms: invoiceParams, u: "CreateInvoice"}, nil)
+	resp, err := apiRequest(s.client, Params{parms: invoiceParams, u: "CreateInvoice"}, nil)
 	if err != nil {
 		return 0, resp, err
 	}

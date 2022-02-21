@@ -13,7 +13,7 @@ see WHMCS API docs
 */
 func (s *AccountsService) DeleteClient(parms map[string]string) (*Response, error) {
 	a := new(Account)
-	resp, err := do(s.client, Params{parms: parms, u: "DeleteClient"}, a)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "DeleteClient"}, a)
 	if err != nil {
 		return resp, err
 	}

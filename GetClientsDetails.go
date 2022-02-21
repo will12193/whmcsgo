@@ -23,7 +23,7 @@ to many to list see WHMCS API docs
 */
 func (s *AccountsService) GetClientsDetails(parms map[string]string) (*Account, *Response, error) {
 	a := new(Account)
-	resp, err := do(s.client, Params{parms: parms, u: "GetClientsDetails"}, a)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "GetClientsDetails"}, a)
 	if err != nil {
 		return nil, resp, err
 	}

@@ -54,7 +54,7 @@ func createTestProduct(whmcs *Client) (*int, error) {
 	var (
 		prod Product
 	)
-	_, response, err := whmcs.Products.AddProduct(
+	product, response, err := whmcs.Products.AddProduct(
 		map[string]string{
 			"name": "TestProduct", "gid": "1",
 		},
@@ -64,12 +64,12 @@ func createTestProduct(whmcs *Client) (*int, error) {
 	}
 	json.Unmarshal([]byte(response.Body), &prod)
 
-	if response.StatusCode == 201 || response.StatusCode == 200 {
+	if response.StatusCode == 201 || response.StatusCode == 200 || product.Result != "success" {
 		fmt.Printf("Created test product. ProductID: %d\n", prod.Pid)
 		return &prod.Pid, err
-	} else {
-		return nil, fmt.Errorf("error, AddProduct returned status of: %d\n", response.StatusCode)
 	}
+
+	return nil, fmt.Errorf("AddProduct returned status of: %d", response.StatusCode)
 }
 
 // Creates a test client
@@ -128,13 +128,11 @@ func createTestOrder(whmcs *Client, clientID int, productID int, paymentMethod s
 	json.Unmarshal([]byte(resp.Body), order)
 
 	// Accept the order
-	_, resp, err = whmcs.Orders.AcceptOrder(map[string]string{
+	_, err = whmcs.Orders.AcceptOrder(map[string]string{
 		"orderid": fmt.Sprintf("%d", order.OrderID),
 	})
 	if err != nil {
 		return nil, err
-	} else if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return nil, fmt.Errorf("error, AcceptOrder returned status of: %s\n", resp.Status)
 	}
 	// t.Logf or pass in logger ?!?
 	fmt.Printf("Created test order with ID: %d\n", order.OrderID)
@@ -158,6 +156,7 @@ func TestGetClients(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
 	_, err = createTestOrder(client, tc.ID, *productID, whmcsConfig.PaymentMethod)
 	if err != nil {
 		t.Error(err)

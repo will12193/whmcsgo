@@ -22,7 +22,7 @@ search
 */
 func (s *AccountsService) GetClients(parms map[string]string) (*WHMCSclients, *Response, error) {
 	obj := new(WHMCSclients)
-	resp, err := do(s.client, Params{parms: parms, u: "GetClients"}, obj)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "GetClients"}, obj)
 	if err != nil {
 		return nil, resp, err
 	}

@@ -51,7 +51,7 @@ products
 
 func (s *AccountsService) GetClientsProducts(parms map[string]string) (*ClientsProduct, *Response, error) {
 	p := new(ClientsProduct)
-	resp, err := do(s.client, Params{parms: parms, u: "GetClientsProducts"}, p)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "GetClientsProducts"}, p)
 	if err != nil {
 		return nil, resp, err
 	}

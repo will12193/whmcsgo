@@ -32,7 +32,7 @@ func (r BillingItem) String() string {
 // WHMCS API docs: https://developers.whmcs.com/api-reference/addbillableitem/
 func (s *BillingService) AddBillableItem(parms map[string]string) (*BillingItem, *Response, error) {
 	a := new(BillingItem)
-	resp, err := do(s.client, Params{parms: parms, u: "AddBillableItem"}, a)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "AddBillableItem"}, a)
 	if err != nil {
 		return nil, resp, err
 	}
@@ -109,7 +109,7 @@ func (s *BillingService) GetLastInvoice(userid int, status string) (Invoice, err
 
 	parms := map[string]string{"status": status, "userid": uid, "limitnum": "1", "orderby": "date", "order": "desc"}
 
-	resp, err := do(s.client, Params{u: "GetInvoices", parms: parms}, invoices)
+	resp, err := apiRequest(s.client, Params{u: "GetInvoices", parms: parms}, invoices)
 
 	if err != nil {
 		return Invoice{}, err
@@ -154,7 +154,7 @@ order
 */
 func (s *BillingService) GetInvoices(parms map[string]string) ([]Invoice, *Response, error) {
 	invoices := new(InvoicesReply)
-	resp, err := do(s.client, Params{parms: parms, u: "GetInvoices"}, invoices)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "GetInvoices"}, invoices)
 
 	if err != nil {
 		return nil, resp, err
@@ -201,7 +201,7 @@ func (s *BillingService) CapturePayment(invoice int) (*CaptureResult, *Response,
 
 	parms := map[string]string{"invoiceid": invoiceid}
 
-	resp, err := do(s.client, Params{parms: parms, u: "CapturePayment"}, result)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "CapturePayment"}, result)
 
 	if err != nil {
 		return nil, resp, err

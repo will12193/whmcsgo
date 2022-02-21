@@ -72,7 +72,7 @@ func (s *BillingService) UpdateInvoice(invoiceID int, items []InvoiceLineItems) 
 
 	parms["invoiceid"] = fmt.Sprintf("%d", invoiceID)
 
-	resp, err := do(s.client, Params{parms: parms, u: "UpdateInvoice"}, i)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "UpdateInvoice"}, i)
 	if err != nil {
 		return nil, resp, err
 	}

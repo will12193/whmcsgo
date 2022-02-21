@@ -25,10 +25,7 @@ func createTestProduct(whmcs *whmcsgo.Client, name string, gid int) (*int, error
 		return nil, fmt.Errorf("json.Unmarshal failed: %w", err)
 	}
 
-	if response.StatusCode == 200 {
-		return &prod.Pid, err
-	}
-	return nil, fmt.Errorf("error, AddProduct returned status of: %d", response.StatusCode)
+	return &prod.Pid, err
 }
 
 // Creates a test client (if client with same email already exists, no new client will be made)
@@ -59,11 +56,18 @@ func createTestClient(whmcs *whmcsgo.Client) (*whmcsgo.Account, error) {
 		return nil, fmt.Errorf("body Unmarshal failed: %w", err)
 	}
 
-	if response.StatusCode == 200 ||
-		(apiResp.Result == "error" && apiResp.Message == "A user already exists with that email address") {
+	ok := (apiResp.Result == "error" &&
+		apiResp.Message == "A client already exists with that email address") ||
+		apiResp.Result == "success"
+
+	if ok {
 		client, _, err := whmcs.Accounts.GetClientsDetails(map[string]string{"email": email})
 		if err != nil {
 			return nil, fmt.Errorf("GetClientDetails failed: %w", err)
+		}
+
+		if client == nil {
+			return nil, fmt.Errorf("bah %+v", apiResp)
 		}
 		return client, err
 	}
@@ -79,36 +83,34 @@ func createTestOrder(whmcs *whmcsgo.Client, clientID, productID int, paymentMeth
 	})
 	if err != nil {
 		return nil, fmt.Errorf("whmcs.Orders.AddOrder failed: %w", err)
-	} else if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return nil, fmt.Errorf("error, AddOrder returned status of: %s", resp.Status)
 	}
+
 	err = json.Unmarshal([]byte(resp.Body), order)
 	if err != nil {
 		return nil, fmt.Errorf("json.Unmarshal failed: %w", err)
 	}
 
+	if order.Result != "success" {
+		return nil, fmt.Errorf("order result invalid : %+v", order)
+	}
+
 	// Accept the order
-	_, resp, err = whmcs.Orders.AcceptOrder(map[string]string{
+	if _, err = whmcs.Orders.AcceptOrder(map[string]string{
 		"orderid": fmt.Sprintf("%d", order.OrderID),
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, fmt.Errorf("whmcs.Orders.AcceptOrder failed: %w", err)
-	} else if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return nil, fmt.Errorf("error, AcceptOrder returned status of: %s", resp.Status)
 	}
 
 	return order, err
 }
 
 func deleteClient(whmcs *whmcsgo.Client, clientID int) error {
-	resp, err := whmcs.Accounts.DeleteClient(map[string]string{
+	_, err := whmcs.Accounts.DeleteClient(map[string]string{
 		"clientid": fmt.Sprintf("%d", clientID), "deleteusers": "true",
 		"deletetransactions": "true",
 	})
 	if err != nil {
 		return fmt.Errorf("whmcs.DeleteClient failed: %w", err)
-	} else if resp.StatusCode != 200 {
-		return fmt.Errorf("error, DeleteClient returned status of: %s", resp.Status)
 	}
 
 	return nil

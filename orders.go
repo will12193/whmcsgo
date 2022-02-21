@@ -1,5 +1,10 @@
 package whmcsgo
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // OrdersService provides access to the orders related functions
 // in the WHMCS API.
 //
@@ -10,6 +15,7 @@ type OrdersService struct {
 
 // Order represents a WHCMS Order for an account
 type Order struct {
+	Result        string  `json:"result"`
 	OrderID       int     `json:"orderid"`
 	ClientID      *string `json:"clientid"`
 	PID           *string `json:"pid"`
@@ -23,6 +29,10 @@ type Order struct {
 	HostName      *string `json:"hostname"`
 }
 
+type AcceptOrder struct {
+	Result string `json:"result"`
+}
+
 func (o Order) String() string {
 	return Stringify(o)
 }
@@ -32,7 +42,7 @@ func (o Order) String() string {
 // WHMCs API docs: https://developers.whmcs.com/api-reference/addorder/
 func (s *OrdersService) AddOrder(parms map[string]string) (*Order, *Response, error) {
 	order := new(Order)
-	resp, err := do(s.client, Params{parms: parms, u: "AddOrder"}, order)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "AddOrder"}, order)
 	if err != nil {
 		return nil, resp, err
 	}
@@ -42,13 +52,25 @@ func (s *OrdersService) AddOrder(parms map[string]string) (*Order, *Response, er
 // AcceptOrder accepts an existing order
 //
 // WHMCs API docs: https://developers.whmcs.com/api-reference/acceptorder/
-func (s *OrdersService) AcceptOrder(parms map[string]string) (*Order, *Response, error) {
-	order := new(Order)
-	resp, err := do(s.client, Params{parms: parms, u: "AcceptOrder"}, order)
+func (s *OrdersService) AcceptOrder(parms map[string]string) (*AcceptOrder, error) {
+	order := AcceptOrder{}
+
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "AcceptOrder"}, nil)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
-	return order, resp, err
+
+	err = json.Unmarshal([]byte(resp.Body), &order)
+
+	if err != nil {
+		return nil, fmt.Errorf("json.Unmarshal failed : %w", err)
+	}
+
+	if order.Result != "success" {
+		return &order, fmt.Errorf("accept order did not succeed")
+	}
+
+	return &order, err
 }
 
 // GetOrders the orders for a user.  Passing the empty string will list
@@ -57,7 +79,7 @@ func (s *OrdersService) AcceptOrder(parms map[string]string) (*Order, *Response,
 // WHMCS API docs: https://developers.whmcs.com/api-reference/getorders/
 func (s *OrdersService) GetOrders(parms map[string]string) (*[]Order, *Response, error) {
 	orders := new([]Order)
-	resp, err := do(s.client, Params{parms: parms, u: "GetOrders"}, orders)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "GetOrders"}, orders)
 	if err != nil {
 		return nil, resp, err
 	}
@@ -70,7 +92,7 @@ func (s *OrdersService) GetOrders(parms map[string]string) (*[]Order, *Response,
 // TO-DO this shall return *[]OrderStatus
 func (s *OrdersService) GetOrderStatuses(parms map[string]string) (*Order, *Response, error) {
 	order := new(Order)
-	resp, err := do(s.client, Params{parms: parms, u: "GetOrderStatuses"}, order)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "GetOrderStatuses"}, order)
 	if err != nil {
 		return nil, resp, err
 	}
@@ -82,7 +104,7 @@ func (s *OrdersService) GetOrderStatuses(parms map[string]string) (*Order, *Resp
 // WHMCS API docs: https://developers.whmcs.com/api-reference/cancelorder/
 func (s *OrdersService) CancelOrder(parms map[string]string) (*Order, *Response, error) {
 	order := new(Order)
-	resp, err := do(s.client, Params{parms: parms, u: "CancelOrder"}, order)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "CancelOrder"}, order)
 	if err != nil {
 		return nil, resp, err
 	}

@@ -218,7 +218,7 @@ func (c *Client) Do(req WRequest, v interface{}) (*Response, error) {
 	return response, err
 }
 
-func do(c *Client, p Params, a interface{}) (*Response, error) {
+func apiRequest(c *Client, p Params, a interface{}) (*Response, error) {
 	req, err := c.NewRequest(p.parms, p.u)
 	if err != nil {
 		return nil, err
@@ -227,6 +227,20 @@ func do(c *Client, p Params, a interface{}) (*Response, error) {
 	resp, err := c.Do(*req, a)
 	if err != nil {
 		return resp, err
+	}
+
+	contains := func(s []int, str int) bool {
+		for _, v := range s {
+			if v == str {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	if contains([]int{200, 201}, resp.StatusCode) == false {
+		return nil, fmt.Errorf("request failed : %d", resp.StatusCode)
 	}
 
 	return resp, err

@@ -30,7 +30,7 @@ func createPaymentGW(password, name string) error {
 
 	// Check if payment gateway already exists
 	selectQuery := `
-		SELECT id FROM whmcs.tblpaymentgateways 
+		SELECT id FROM whmcs.tblpaymentgateways
 			WHERE tblpaymentgateways.gateway = "` + name + `"
 	`
 
@@ -107,7 +107,7 @@ func createPaymentGW(password, name string) error {
 // creates a new product group and returns the GID for it
 func createProductGroup(password, name string) (*int, error) {
 	var (
-		id *int
+		id int
 	)
 
 	insertQuery := `
@@ -161,11 +161,11 @@ func createProductGroup(password, name string) (*int, error) {
 	if results.Err() != nil {
 		return nil, fmt.Errorf("sql.Rows.Err: %w", results.Err())
 	}
-	if id == nil {
+	if id == 0 {
 		return nil, fmt.Errorf("error: Product group %s not found", name)
 	}
 
-	return id, err
+	return &id, err
 }
 
 func deleteProductGroup(password, name string) error {

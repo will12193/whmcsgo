@@ -89,7 +89,7 @@ serviceid
 */
 func (s *SystemService) UpdateClientProduct(parms map[string]string) (*UpdateClientProductReply, *Response, error) {
 	obj := new(UpdateClientProductReply)
-	resp, err := do(s.client, Params{parms: parms, u: "UpdateClientProduct"}, obj)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "UpdateClientProduct"}, obj)
 	if err != nil {
 		return nil, resp, err
 	}

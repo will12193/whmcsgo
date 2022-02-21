@@ -11,7 +11,7 @@ func (s *AccountsService) UpdateClient() (*Account, *Response, error) {
 	a := new(Account)
 	var parms map[string]string
 
-	resp, err := do(s.client, Params{parms: parms, u: "updateclient"}, a)
+	resp, err := apiRequest(s.client, Params{parms: parms, u: "updateclient"}, a)
 	if err != nil {
 		return nil, resp, err
 	}
