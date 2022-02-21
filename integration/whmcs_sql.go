@@ -7,8 +7,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func doSQLQuery(query string) (*sql.Rows, error) {
-	db, err := sql.Open("mysql", "root:sUper3R4nd0m@tcp(localhost:3306)/whmcs")
+func doSQLQuery(password string, query string) (*sql.Rows, error) {
+	db, err := sql.Open("mysql", "root:"+password+"@tcp(localhost:3306)/whmcs")
 	if err != nil {
 		return nil, fmt.Errorf("sql.Open failed: %w", err)
 	}
@@ -23,17 +23,18 @@ func doSQLQuery(query string) (*sql.Rows, error) {
 }
 
 // Checks for exisiting payment gateway, and if none, create one
-func createPaymentGW(name string) error {
+func createPaymentGW(password string, name string) error {
 	var (
 		id *int
 	)
 
+	// Check if payment gateway already exists
 	selectQuery := `
 		SELECT id FROM whmcs.tblpaymentgateways 
 			WHERE tblpaymentgateways.gateway = "` + name + `"
 	`
 
-	results, err := doSQLQuery(selectQuery)
+	results, err := doSQLQuery(password, selectQuery)
 	if err != nil {
 		return fmt.Errorf("doSQLQuery failed: %w", err)
 	}
@@ -92,12 +93,12 @@ func createPaymentGW(name string) error {
 			0
 		)
 	`
-	_, err = doSQLQuery(insertQuery)
+	_, err = doSQLQuery(password, insertQuery)
 	return err
 }
 
 // creates a new product group and returns the GID for it
-func createProductGroup(name string) (*int, error) {
+func createProductGroup(password string, name string) (*int, error) {
 	var (
 		id *int
 	)
@@ -129,7 +130,7 @@ func createProductGroup(name string) (*int, error) {
 				'2022-02-15 03:37:11'
 		);
 	`
-	_, err := doSQLQuery(insertQuery)
+	_, err := doSQLQuery(password, insertQuery)
 	if err != nil {
 		return nil, fmt.Errorf("doSQLQuery failed: %w", err)
 	}
@@ -139,7 +140,7 @@ func createProductGroup(name string) (*int, error) {
 		WHERE tblproductgroups.name = "` + name + `"
 	`
 
-	results, err := doSQLQuery(selectQuery)
+	results, err := doSQLQuery(password, selectQuery)
 	if err != nil {
 		return nil, fmt.Errorf("doSQLQuery failed: %w", err)
 	}
@@ -157,18 +158,18 @@ func createProductGroup(name string) (*int, error) {
 	return id, err
 }
 
-func deleteProductGroup(name string) error {
+func deleteProductGroup(password string, name string) error {
 	query := `
 		DELETE FROM whmcs.tblproductgroups WHERE (tblproductgroups.name = "` + name + `");
 	`
-	_, err := doSQLQuery(query)
+	_, err := doSQLQuery(password, query)
 	return err
 }
 
-func deleteProduct(name string) error {
+func deleteProduct(password string, name string) error {
 	query := `
 		DELETE FROM whmcs.tblproducts WHERE (tblproducts.name = "` + name + `");
 	`
-	_, err := doSQLQuery(query)
+	_, err := doSQLQuery(password, query)
 	return err
 }

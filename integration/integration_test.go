@@ -24,13 +24,14 @@ export WHM_SECRET="put your api secret key here"
 export WHM_ACCESS="put your api access key here"
 export WHM_URL="http://localhost:####/"
 export WHM_PAYMENTMETHOD="payment method setup in dev env"
+export WHM_DB_PASSWORD="password for the root user in DB"
 
 Prerequisites to running the tests:
 - Working instance of WHMCS
 - Settings -> API Credentials - Created API Role with appropriate access and create credentials
 
 Whats left (not cleaned up) after running the tests:
-- A Payment Gateway
+- A Payment Gateway is setup
 */
 
 type Config struct {
@@ -39,6 +40,7 @@ type Config struct {
 	Ident         string `default:"JnbGfwNUq1CIHxhEoqRbMKb084gcvwwz"`
 	Secret        string `default:"Wx9Lqeqe0Os0paUUDtbc37k89qfpqdvZ"`
 	PaymentMethod string `default:"testPaymentMethod"`
+	DB_Password   string `default:"sUper3R4nd0m"`
 }
 
 var whmcsConfig *Config
@@ -67,7 +69,7 @@ func TestGetClients(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	gid, err := createProductGroup(testProductGroup)
+	gid, err := createProductGroup(whmcsConfig.DB_Password, testProductGroup)
 	if err != nil {
 		t.Error(err)
 	}
@@ -75,7 +77,7 @@ func TestGetClients(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = createPaymentGW(whmcsConfig.PaymentMethod)
+	err = createPaymentGW(whmcsConfig.DB_Password, whmcsConfig.PaymentMethod)
 	if err != nil {
 		t.Error(err)
 	}
@@ -130,11 +132,11 @@ func TestGetClients(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = deleteProduct(testProduct)
+	err = deleteProduct(whmcsConfig.DB_Password, testProduct)
 	if err != nil {
 		t.Error(err)
 	}
-	err = deleteProductGroup(testProductGroup)
+	err = deleteProductGroup(whmcsConfig.DB_Password, testProductGroup)
 	if err != nil {
 		t.Error(err)
 	}
