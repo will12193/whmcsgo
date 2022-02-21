@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql" // Part of a testing package
 )
 
-func doSQLQuery(password string, query string) (*sql.Rows, error) {
+func doSQLQuery(password, query string) (*sql.Rows, error) {
 	db, err := sql.Open("mysql", "root:"+password+"@tcp(localhost:3306)/whmcs")
 	if err != nil {
 		return nil, fmt.Errorf("sql.Open failed: %w", err)
@@ -23,7 +23,7 @@ func doSQLQuery(password string, query string) (*sql.Rows, error) {
 }
 
 // Checks for exisiting payment gateway, and if none, create one
-func createPaymentGW(password string, name string) error {
+func createPaymentGW(password, name string) error {
 	var (
 		id *int
 	)
@@ -38,11 +38,15 @@ func createPaymentGW(password string, name string) error {
 	if err != nil {
 		return fmt.Errorf("doSQLQuery failed: %w", err)
 	}
+	defer results.Close()
 	for results.Next() {
 		err = results.Scan(&id)
 		if err != nil {
-			return fmt.Errorf("Scan failed: %w", err)
+			return fmt.Errorf("rows.Scan failed: %w", err)
 		}
+	}
+	if results.Err() != nil {
+		return fmt.Errorf("sql.Rows.Err: %w", results.Err())
 	}
 	if id != nil {
 		return nil
@@ -93,12 +97,15 @@ func createPaymentGW(password string, name string) error {
 			0
 		)
 	`
-	_, err = doSQLQuery(password, insertQuery)
+	results, err = doSQLQuery(password, insertQuery)
+	if results.Err() != nil {
+		return fmt.Errorf("sql.Rows.Err: %w", results.Err())
+	}
 	return err
 }
 
 // creates a new product group and returns the GID for it
-func createProductGroup(password string, name string) (*int, error) {
+func createProductGroup(password, name string) (*int, error) {
 	var (
 		id *int
 	)
@@ -130,8 +137,8 @@ func createProductGroup(password string, name string) (*int, error) {
 				'2022-02-15 03:37:11'
 		);
 	`
-	_, err := doSQLQuery(password, insertQuery)
-	if err != nil {
+	results, err := doSQLQuery(password, insertQuery)
+	if err != nil || results.Err() != nil {
 		return nil, fmt.Errorf("doSQLQuery failed: %w", err)
 	}
 
@@ -140,7 +147,7 @@ func createProductGroup(password string, name string) (*int, error) {
 		WHERE tblproductgroups.name = "` + name + `"
 	`
 
-	results, err := doSQLQuery(password, selectQuery)
+	results, err = doSQLQuery(password, selectQuery)
 	if err != nil {
 		return nil, fmt.Errorf("doSQLQuery failed: %w", err)
 	}
@@ -148,8 +155,11 @@ func createProductGroup(password string, name string) (*int, error) {
 	for results.Next() {
 		err = results.Scan(&id)
 		if err != nil {
-			return nil, fmt.Errorf("Scan failed: %w", err)
+			return nil, fmt.Errorf("rows.Scan failed: %w", err)
 		}
+	}
+	if results.Err() != nil {
+		return nil, fmt.Errorf("sql.Rows.Err: %w", results.Err())
 	}
 	if id == nil {
 		return nil, fmt.Errorf("error: Product group %s not found", name)
@@ -158,18 +168,24 @@ func createProductGroup(password string, name string) (*int, error) {
 	return id, err
 }
 
-func deleteProductGroup(password string, name string) error {
+func deleteProductGroup(password, name string) error {
 	query := `
 		DELETE FROM whmcs.tblproductgroups WHERE (tblproductgroups.name = "` + name + `");
 	`
-	_, err := doSQLQuery(password, query)
+	results, err := doSQLQuery(password, query)
+	if results.Err() != nil {
+		return fmt.Errorf("sql.Rows.Err: %w", results.Err())
+	}
 	return err
 }
 
-func deleteProduct(password string, name string) error {
+func deleteProduct(password, name string) error {
 	query := `
 		DELETE FROM whmcs.tblproducts WHERE (tblproducts.name = "` + name + `");
 	`
-	_, err := doSQLQuery(password, query)
+	results, err := doSQLQuery(password, query)
+	if results.Err() != nil {
+		return fmt.Errorf("sql.Rows.Err: %w", results.Err())
+	}
 	return err
 }

@@ -40,7 +40,7 @@ type Config struct {
 	Ident         string `default:"JnbGfwNUq1CIHxhEoqRbMKb084gcvwwz"`
 	Secret        string `default:"Wx9Lqeqe0Os0paUUDtbc37k89qfpqdvZ"`
 	PaymentMethod string `default:"testPaymentMethod"`
-	DB_Password   string `default:"sUper3R4nd0m"`
+	DBPassword    string `default:"sUper3R4nd0m"`
 }
 
 var whmcsConfig *Config
@@ -69,7 +69,7 @@ func TestGetClients(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	gid, err := createProductGroup(whmcsConfig.DB_Password, testProductGroup)
+	gid, err := createProductGroup(whmcsConfig.DBPassword, testProductGroup)
 	if err != nil {
 		t.Error(err)
 	}
@@ -77,7 +77,7 @@ func TestGetClients(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = createPaymentGW(whmcsConfig.DB_Password, whmcsConfig.PaymentMethod)
+	err = createPaymentGW(whmcsConfig.DBPassword, whmcsConfig.PaymentMethod)
 	if err != nil {
 		t.Error(err)
 	}
@@ -132,11 +132,11 @@ func TestGetClients(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = deleteProduct(whmcsConfig.DB_Password, testProduct)
+	err = deleteProduct(whmcsConfig.DBPassword, testProduct)
 	if err != nil {
 		t.Error(err)
 	}
-	err = deleteProductGroup(whmcsConfig.DB_Password, testProductGroup)
+	err = deleteProductGroup(whmcsConfig.DBPassword, testProductGroup)
 	if err != nil {
 		t.Error(err)
 	}
@@ -196,14 +196,12 @@ func TestClientContactList(t *testing.T) {
 	}
 	t.Logf("\nActive Contacts:\n%v\nInactive Contacts:\n%v", active, inactive)
 
-	contacts := append(active, inactive...)
-	assert.Greater(t, len(contacts), 0)
+	assert.Greater(t, len(active)+len(inactive), 0)
 
 	err = deleteClient(client, tc.ID)
 	if err != nil {
 		t.Error(err)
 	}
-
 }
 
 func TestCreateInvoice(t *testing.T) {
