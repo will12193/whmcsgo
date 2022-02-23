@@ -3,6 +3,7 @@ package integration
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/chrisjoyce911/whmcsgo"
@@ -182,12 +183,9 @@ func TestClientContactList(t *testing.T) {
 	}, active)
 
 	inactive, err := client.Accounts.ClientContactList("Inactive")
+	assert.NoError(t, err)
 
-	if err != nil {
-		t.Error(err)
-	}
 	t.Logf("\nActive Contacts:\n%v\nInactive Contacts:\n%v", active, inactive)
-
 	assert.Greater(t, len(active)+len(inactive), 0)
 
 	err = deleteClient(client, tc.ID)
@@ -199,9 +197,7 @@ func TestClientContactList(t *testing.T) {
 func TestCreateInvoice(t *testing.T) {
 	client, _ := loadWhmcs()
 	tc, err := createTestClient(client)
-	if err != nil {
-		panic(err)
-	}
+	assert.NoError(t, err)
 
 	// Create a new Invoice
 	invoice := whmcsgo.CreateInvoiceRequest{}
@@ -253,7 +249,14 @@ func TestCreateInvoice(t *testing.T) {
 		Result: "success",
 	})
 
-	// TODO: Get line items and assert correct
+	// Get Invoice and check line items
+	inv, err := client.Billing.GetLastInvoice(tc.ID, "")
+	assert.NoError(t, err)
+
+	assert.Equal(t, inv.ID, invoiceid)
+	subtotal, err := strconv.ParseFloat(inv.Subtotal, 64)
+	assert.NoError(t, err)
+	assert.Equal(t, subtotal, float64(lineItem.ItemAmount))
 
 	t.Logf("invoice ID: %d\n", invoiceid)
 
