@@ -248,6 +248,20 @@ func TestCreateInvoice(t *testing.T) {
 		Status: "Draft",
 		Result: "success",
 	})
+	t.Logf("invoice ID: %d\n", invoiceid)
+
+	// Update the invoice
+	lineitems = []whmcsgo.InvoiceLineItems{}
+	lineItem = whmcsgo.InvoiceLineItems{}
+	lineItem.ItemOrder = 3
+	lineItem.ItemDescription = "Updated description line"
+	lineItem.ItemTaxed = true
+	lineItem.ItemAmount = 1
+	lineitems = append(lineitems, lineItem)
+
+	updInv, _, err := client.Billing.UpdateInvoice(invoiceid, lineitems)
+	assert.NoError(t, err)
+	assert.Equal(t, updInv.Result, "success")
 
 	// Get Invoice and check line items
 	inv, err := client.Billing.GetLastInvoice(tc.ID, "")
@@ -256,9 +270,7 @@ func TestCreateInvoice(t *testing.T) {
 	assert.Equal(t, inv.ID, invoiceid)
 	subtotal, err := strconv.ParseFloat(inv.Subtotal, 64)
 	assert.NoError(t, err)
-	assert.Equal(t, subtotal, float64(lineItem.ItemAmount))
-
-	t.Logf("invoice ID: %d\n", invoiceid)
+	assert.Equal(t, subtotal, float64(11))
 
 	err = deleteClient(client, tc.ID)
 	if err != nil {

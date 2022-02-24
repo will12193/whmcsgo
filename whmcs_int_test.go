@@ -108,13 +108,12 @@ func createTestClient(whmcs *Client) (*Account, error) {
 		}
 		fmt.Printf("Created test client with email: %s\n", client.Email)
 		return client, err
-	} else {
-		return nil, fmt.Errorf("error, AddClient returned status of: %+v\n", response)
 	}
+	return nil, fmt.Errorf("error, AddClient returned status of: %+v", response)
 }
 
 // Adds and accepts an order
-func createTestOrder(whmcs *Client, clientID int, productID int, paymentMethod string) (*Order, error) {
+func createTestOrder(whmcs *Client, clientID, productID int, paymentMethod string) (*Order, error) {
 	// Add the order
 	order, resp, err := whmcs.Orders.AddOrder(map[string]string{
 		"clientid": fmt.Sprintf("%d", clientID), "paymentmethod": paymentMethod,
@@ -123,7 +122,7 @@ func createTestOrder(whmcs *Client, clientID int, productID int, paymentMethod s
 	if err != nil {
 		return nil, err
 	} else if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return nil, fmt.Errorf("error, AddOrder returned status of: %s\n", resp.Status)
+		return nil, fmt.Errorf("error, AddOrder returned status of: %s", resp.Status)
 	}
 	json.Unmarshal([]byte(resp.Body), order)
 
